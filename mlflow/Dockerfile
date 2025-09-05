@@ -1,0 +1,28 @@
+# FROM python:3.10-slim
+FROM ubuntu:22.04
+
+RUN apt-get update
+RUN apt-get install -y python3.10 python3-pip
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+RUN mkdir -p /home/mlflow
+RUN useradd -m -s /bin/bash mlflow
+RUN chown -R mlflow:mlflow /home/mlflow
+
+USER mlflow
+
+WORKDIR /home/mlflow
+
+# Set environment variables
+ENV MLFLOW_DEFAULT_ARTIFACT_ROOT=$MLFLOW_DEFAULT_ARTIFACT_ROOT
+ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+ENV AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+ENV MLFLOW_BACKEND_STORE_URI=$MLFLOW_BACKEND_STORE_URI
+ENV MLFLOW_ARTIFACT_STORE=$MLFLOW_ARTIFACT_STORE
+ENV MLFLOW_S3_ENDPOINT_URL=$MLFLOW_S3_ENDPOINT_URL
+ENV POSTGRES_USER=$POSTGRES_USER
+ENV POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+ENV POSTGRES_DB=$POSTGRES_DB
+
+EXPOSE 5000
