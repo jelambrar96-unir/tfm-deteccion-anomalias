@@ -2,6 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+
+# Instalación de dependencias del sistema (git incluido)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential
 # COPY ["Pipfile", "Pipfile.lock", "./"]
 
 COPY ["requirements.txt", "."]
