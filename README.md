@@ -12,6 +12,8 @@ Para abordar este problema, se propone el uso de modelos de machine learning cl�
 
 ## Componentes y Flujo de Trabajo
 
+![](docs/arquitectura-deteccion-anomalias.drawio.png)
+
 El proyecto está organizado en varios componentes que trabajan en conjunto para ofrecer una solución completa, desde la experimentación hasta la puesta en producción de un modelo.
 
 ### Componentes
