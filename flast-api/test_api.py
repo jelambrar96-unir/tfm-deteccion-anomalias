@@ -254,3 +254,29 @@ def test_predictfeatures_knn(model_name):
     assert "prediction" in json_response, "No se encontró 'prediction' en la respuesta"
     assert isinstance(json_response["prediction"], list), "'prediction' no es una lista"
 
+
+# Datos crudos simulados (2 señales de 2048 elementos cada una)
+sample_raw = [[0.1] * 2048, [0.2] * 2048]
+
+# Entrada para el nuevo endpoint
+test_raw_input = {
+    "accelerometer": "FE",
+    "raw": sample_raw
+}
+
+# Cambia si usas otro run_name
+@pytest.mark.parametrize("model_name", ["logistic-regression"]) 
+def test_predictraw(model_name):
+    response = client.post(
+        f"/predictraw/{model_name}",
+        json=test_raw_input
+    )
+
+    assert response.status_code == 200, f"Response failed: {response.text}"
+    json_response = response.json()
+
+    # Validaciones
+    assert "prediction" in json_response, "No se encontró 'prediction' en la respuesta"
+    assert isinstance(json_response["prediction"], list), "'prediction' no es una lista"
+    assert len(json_response["prediction"]) == len(test_raw_input["raw"]), \
+        "El número de predicciones no coincide con el número de señales"
