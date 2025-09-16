@@ -52,6 +52,29 @@ Para ejecutar este proyecto en tu entorno local, necesitas tener instalado **Doc
     cd tu_repositorio
     ```
 
+    1.1.    **Copia el archivo .env**
+    ```bash
+    cp sample.env .env
+    ```
+
+    1.2.    **Modifica el archivo .env**
+    ```bash
+    MINIO_ACCESS_KEY=your_minio_access_key
+    MINIO_SECRET_KEY=your_minio_secret_key
+    MINIO_BUCKET_NAME=your_minio_bucket_name
+
+    POSTGRES_USER=your_postgres_username
+    POSTGRES_PASSWORD=your_postgres_password
+    POSTGRES_DB=your_postgres_database
+    POSTGRES_HOST=your_postgres_host
+    POSTGRES_PORT=your_postgres_port 
+
+    MLFLOW_EXPERIMENT_NAME=your_experiment_name
+
+    JUPYTER_TOKEN=your_jupyter_token
+    ```
+
+
 2.  **Levanta los servicios con Docker Compose:**
     ```bash
     docker-compose up -d
@@ -73,3 +96,11 @@ Para ejecutar este proyecto en tu entorno local, necesitas tener instalado **Doc
     ```bash
     docker-compose down
     ```
+
+___________________
+
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/jelambrar1)
+
+Made with Love ❤️ by [@jelambrar96](https://github.com/jelambrar96)
+
