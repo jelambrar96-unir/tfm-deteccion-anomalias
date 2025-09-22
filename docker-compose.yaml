@@ -1,0 +1,164 @@
+services:
+
+  minio:
+    image: minio/minio@sha256:d051d800a3025588f37f69f132bb5ef718547a9a4ee95ddee44e04ad952a0a96
+    container_name: minio-tfm
+    command: server /data --console-address ':9001' --address ':9000'
+    ports:
+      - 9000:9000
+      - 9001:9001
+    environment:
+      MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY
+      MINIO_SECRET_KEY: $MINIO_SECRET_KEY
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: curl -f --output /dev/null --silent http://localhost:9000/minio/health/live
+      interval: 10s
+      timeout: 2s
+      retries: 3
+
+
+  minio-bucket-creator:
+    image: minio/mc
+    container_name: minio-bucket-creator-tfm
+    entrypoint: sh
+    command: >
+      mc config host add minio http://minio:9000 
+      $MINIO_ACCESS_KEY $MINIO_SECRET_KEY 
+      && mc mb minio/$MINIO_BUCKET_NAME
+    depends_on:
+      minio:
+        condition: service_healthy
+
+
+  python-bucket-creator:
+    build: minio_client
+    container_name: python-bucket-creator-tfm
+    environment:
+      AWS_ACCESS_KEY: $MINIO_ACCESS_KEY
+      AWS_SECRET_KEY: $MINIO_SECRET_KEY
+      MINIO_SERVER: "http://minio:9000"
+      BUCKET_NAME: $MINIO_BUCKET_NAME
+    depends_on:
+      minio:
+        condition: service_healthy
+
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres-tfm
+    environment:
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - POSTGRES_DB=$POSTGRES_DB
+    volumes: 
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+
+  mlflow:
+    build:
+      context: ./mlflow
+      dockerfile: Dockerfile
+    container_name: mlflow-tfm
+    ports:
+      - 5000:5000
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - MLFLOW_S3_IGNORE_TLS=true
+      - MLFLOW_BUCKET_NAME=$MINIO_BUCKET_NAME
+      - POSTGRES_DB=$POSTGRES_DB
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=s3://$MINIO_BUCKET_NAME/
+      - AWS_ACCESS_KEY_ID=$MINIO_ACCESS_KEY
+      - AWS_SECRET_ACCESS_KEY=$MINIO_SECRET_KEY
+      - AWS_ENDPOINT_URL=http://minio:9000
+    restart: on-failure
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri ${MLFLOW_BACKEND_STORE_URI}
+      --no-serve-artifacts
+      --artifacts-destination s3://{MLFLOW_BUCKET_NAME}/artifacts
+    depends_on:
+      minio:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+
+  jupyter:
+    build:
+      context: notebooks
+      dockerfile: Dockerfile
+    container_name: jupyter-tfm
+    ports:
+      - 8888:8888
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY
+      - MINIO_SECRET_KEY=$MINIO_SECRET_KEY
+      - MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
+      - JUPYTER_TOKEN=$JUPYTER_TOKEN
+      - MLFLOW_TRACKING_URI="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB"
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - MLFLOW_S3_IGNORE_TLS=true
+      - MLFLOW_BUCKET_NAME=$MINIO_BUCKET_NAME
+      - MLFLOW_SERVER=http://mlflow:5000
+      - AWS_ACCESS_KEY_ID=$MINIO_ACCESS_KEY
+      - AWS_SECRET_ACCESS_KEY=$MINIO_SECRET_KEY
+      - MLFLOW_EXPERIMENT_NAME=$MLFLOW_EXPERIMENT_NAME
+      - POSTGRES_DB=$POSTGRES_DB
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+    volumes:
+      - ./notebooks:/app
+    depends_on:
+      - mlflow
+
+
+  fastapi:
+    build:
+      context: fast-api
+      dockerfile: Dockerfile
+    container_name: fastapi-tfm
+    ports:
+      - 8000:8000
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY
+      - MINIO_SECRET_KEY=$MINIO_SECRET_KEY
+      - MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
+      - JUPYTER_TOKEN=$JUPYTER_TOKEN
+      - MLFLOW_TRACKING_URI="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB"
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - MLFLOW_S3_IGNORE_TLS=true
+      - MLFLOW_BUCKET_NAME=$MINIO_BUCKET_NAME
+      - MLFLOW_SERVER=http://mlflow:5000
+      - AWS_ACCESS_KEY_ID=$MINIO_ACCESS_KEY
+      - AWS_SECRET_ACCESS_KEY=$MINIO_SECRET_KEY
+      - MLFLOW_EXPERIMENT_NAME=$MLFLOW_EXPERIMENT_NAME
+      - POSTGRES_DB=$POSTGRES_DB
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+    depends_on:
+      - mlflow
+
+
+volumes:
+  postgres_data:
+  minio_data:
